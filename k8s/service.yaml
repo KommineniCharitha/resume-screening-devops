@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: resume-screener-svc
+  labels:
+    app: resume-screener
+spec:
+  type: NodePort          # use NodePort for Minikube access
+  selector:
+    app: resume-screener
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80            # service port (internal cluster)
+      targetPort: 5000    # container port
+      nodePort: 30080     # external port on Minikube node

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resume-screener
+  labels:
+    app: resume-screener
+    version: "1.0"
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: resume-screener
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  template:
+    metadata:
+      labels:
+        app: resume-screener
+
+    spec:
+      containers:
+        - name: resume-screener
+          image: python:3.10-slim
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              python -m http.server 5000
+
+          ports:
+            - containerPort: 5000
+
+          env:
+            - name: FLASK_ENV
+              value: "production"
+
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          
+
+          volumeMounts:
+            - name: uploads-tmp
+              mountPath: /tmp/uploads
+
+      volumes:
+        - name: uploads-tmp
+          emptyDir: {}
