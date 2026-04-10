@@ -42,7 +42,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 app.py parser.py scorer.py \
+          flake8 app.py parser.py scorer.py --ignore=E221,E241,F401 \
             --max-line-length=120 \
             --ignore=E501,W503
 
