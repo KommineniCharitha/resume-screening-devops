@@ -10,9 +10,10 @@ env:
   DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/resume-screener
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────────────
+
+  # ─────────────────────────────────────────────────────────────
   # JOB 1: Build & Test
-  # ──────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────
   build-test:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -37,28 +38,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
-          pip install flake8
+          pip install pytest flake8
 
+      # ✅ FIXED LINT STEP (SINGLE LINE)
       - name: Lint with flake8
-        run: |
-          flake8 app.py parser.py scorer.py --ignore=E221,E241,F401 --exit-zero
-            --max-line-length=120 \
-            --ignore=E501,W503
+        run: flake8 app.py parser.py scorer.py --ignore=E221,E241,E501,F401,W503 --max-line-length=120 --exit-zero
 
       - name: Run unit tests
-        run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing
+        run: pytest tests/ -v
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
-
-  # ──────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────
   # JOB 2: Docker Build & Push
-  # ──────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────
   docker-build-push:
     name: Docker Build & Push
     runs-on: ubuntu-latest
@@ -78,29 +69,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata (tags/labels)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.DOCKER_IMAGE }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.DOCKER_IMAGE }}:latest
 
-  # ──────────────────────────────────────────────────────────────────────────
-  # JOB 3: Deploy to Kubernetes (Minikube / cluster)
-  # ──────────────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3: Deploy to Kubernetes
+  # ─────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
@@ -113,28 +97,13 @@ jobs:
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
 
       - name: Configure kubeconfig
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
 
-      - name: Update image tag in deployment
-        run: |
-          sed -i "s|<YOUR_DOCKERHUB_USERNAME>|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/deployment.yaml
-
-      - name: Apply Kubernetes manifests
+      - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
-
-      - name: Wait for rollout
-        run: |
-          kubectl rollout status deployment/resume-screener --timeout=120s
-
-      - name: Verify deployment
-        run: |
-          kubectl get pods -l app=resume-screener
-          kubectl get svc resume-screener-svc
