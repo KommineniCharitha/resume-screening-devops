@@ -54,7 +54,7 @@ jobs:
     name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: build-test
-    if: false
+    if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' }}
 
     steps:
       - name: Checkout code
