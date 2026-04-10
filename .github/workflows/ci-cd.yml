@@ -89,7 +89,7 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: docker-build-push
-    if: github.ref == 'refs/heads/main'
+    if: ${{ github.ref == 'refs/heads/main' }}
 
     steps:
       - name: Checkout code
@@ -98,12 +98,24 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Configure kubeconfig
+      - name: Install Minikube
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+      - name: Start Minikube
+        run: |
+          minikube start --driver=docker
+
+      - name: Check cluster
+        run: kubectl get nodes
 
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods
+          kubectl get svc
